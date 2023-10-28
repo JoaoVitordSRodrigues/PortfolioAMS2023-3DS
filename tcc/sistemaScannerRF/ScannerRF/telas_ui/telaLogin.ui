@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>945</width>
+    <height>561</height>
+   </rect>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>1000</width>
+    <height>700</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Login | Sistema de Reconhecimento Facial</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="minimumSize">
+    <size>
+     <width>785</width>
+     <height>482</height>
+    </size>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QFrame" name="frm_fundo">
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 255, 255);</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item row="1" column="1">
+        <widget class="QFrame" name="frm_fundoLogin">
+         <property name="maximumSize">
+          <size>
+           <width>400</width>
+           <height>450</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(28, 28, 28);
+border-radius: 10px;</string>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <widget class="QLabel" name="lblTitulo">
+          <property name="geometry">
+           <rect>
+            <x>130</x>
+            <y>60</y>
+            <width>141</width>
+            <height>61</height>
+           </rect>
+          </property>
+          <property name="font">
+           <font>
+            <family>Arial</family>
+            <pointsize>20</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(255, 255, 255);
+font: 20pt &quot;Arial&quot;;
+background-position:center;</string>
+          </property>
+          <property name="text">
+           <string>Fazer login </string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="lblSubtitulo">
+          <property name="geometry">
+           <rect>
+            <x>90</x>
+            <y>115</y>
+            <width>221</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="font">
+           <font>
+            <family>Arial</family>
+            <pointsize>10</pointsize>
+            <weight>50</weight>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(255, 255, 255);</string>
+          </property>
+          <property name="text">
+           <string>Faça o login para acessar o sistema.</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="lblUsuario">
+          <property name="geometry">
+           <rect>
+            <x>24</x>
+            <y>160</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(255, 255, 255);
+font: 12pt &quot;Arial&quot;;
+</string>
+          </property>
+          <property name="text">
+           <string>Usuário:</string>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="etyUsuario">
+          <property name="geometry">
+           <rect>
+            <x>24</x>
+            <y>190</y>
+            <width>351</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="font">
+           <font>
+            <family>Arial</family>
+            <pointsize>10</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QLineEdit{
+	background-color: #454648;
+	border-radius:5px;
+	border: 2px solid #6C6F71;
+	color:#ffffff;
+}
+
+QLineEdit:focus{
+	border: 2px solid #069E6E;
+}</string>
+          </property>
+          <property name="placeholderText">
+           <string>Insira o seu usuário</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="lblSenha">
+          <property name="geometry">
+           <rect>
+            <x>24</x>
+            <y>243</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(255, 255, 255);
+font: 12pt &quot;Arial&quot;;
+</string>
+          </property>
+          <property name="text">
+           <string>Senha:</string>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="etySenha">
+          <property name="geometry">
+           <rect>
+            <x>24</x>
+            <y>273</y>
+            <width>351</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="font">
+           <font>
+            <family>Arial</family>
+            <pointsize>10</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QLineEdit{
+	background-color: #454648;
+	border-radius:5px;
+	border: 2px solid #6C6F71;
+	color:#ffffff;
+}
+
+QLineEdit:focus{
+	border: 2px solid #069E6E;
+}</string>
+          </property>
+          <property name="echoMode">
+           <enum>QLineEdit::Password</enum>
+          </property>
+          <property name="placeholderText">
+           <string>Insira a sua senha</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="btnLogin">
+          <property name="geometry">
+           <rect>
+            <x>24</x>
+            <y>350</y>
+            <width>351</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="font">
+           <font>
+            <family>Arial</family>
+            <pointsize>11</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton{
+	background-color:#069E6E;
+	color:#ffffff;
+	border-radius:5px;
+}
+
+QPushButton:hover{
+	background-color:#047b55;
+}
+
+QPushButton:pressed{
+	background-color: rgb(2, 45, 29);
+}</string>
+          </property>
+          <property name="text">
+           <string>Login</string>
+          </property>
+         </widget>
+         <widget class="QCheckBox" name="chkboxExibirSenha">
+          <property name="geometry">
+           <rect>
+            <x>24</x>
+            <y>320</y>
+            <width>101</width>
+            <height>21</height>
+           </rect>
+          </property>
+          <property name="font">
+           <font>
+            <family>Arial</family>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QCheckBox{
+	color: #6C6F71;
+}
+
+QCheckBox::indicator{
+	border: 3px solid #6C6F71;
+	width: 12px;
+	height:12px;
+	border-radius:5px;
+}
+
+QCheckBox::indicator:checked{
+	border: 3px solid #069E6E;
+	background-color: #069E6E;
+}
+
+</string>
+          </property>
+          <property name="text">
+           <string>Exibir senha</string>
+          </property>
+         </widget>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QFrame" name="frm_imgLogo">
+         <property name="maximumSize">
+          <size>
+           <width>295</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-image: url(:/imagens/imgLogo.png);
+background-repeat:no-repeat;
+background-position:left;</string>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>945</width>
+     <height>21</height>
+    </rect>
+   </property>
+  </widget>
+ </widget>
+ <resources>
+  <include location="../imagens/imagens_usadas.qrc"/>
+ </resources>
+ <connections/>
+</ui>
