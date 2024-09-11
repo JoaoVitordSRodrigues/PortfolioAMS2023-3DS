@@ -2,18 +2,29 @@
 import sys
 import io
 from bd import BancoTcc
-import messagebox
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QMessageBox, QComboBox, QFileDialog, QStackedWidget
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QMessageBox, QComboBox, QFileDialog, QTableWidgetItem
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QPixmap, QImage, QColor
 from PyQt5.QtCore import pyqtSlot, QTextStream
 from main import MainWindow
 from telas_py.telas_Seguranca import Ui_MainWindow as Ui_Telas_Seguranca
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QUrl, QTimer
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+#importando da pasta 'classes' a classe entrada em python
+from classes.Entrada import Entrada
+from rec_facial.cadastro_face import Face
+
+from rec_facial.reconhecimento_facial import Teste
 # Importa a Biblioteca OPENCV --> Usada para o Reconhecimento em si 
 import cv2
-import pyttsx3
 import sqlite3
+import numpy as np
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+import sys, os
+from datetime import datetime, time
+
+
+
 
 #=========================================================================#
 #                                                                         #
@@ -27,16 +38,19 @@ class Config_TelasSeguranca(QMainWindow):
         self.ui = Ui_Telas_Seguranca()
         self.ui.setupUi(self)
 
+        self.classeEntrada = Entrada()
+        self.Face = Face()
+        self.Teste = Teste()
         #variavel que recebe o nome do funcionario
         self.nome_funcionario = nome_funcionario
         #setando o nome do funcionario na label da pagina de inicio
         self.ui.label_2.setText(f'Olá, {self.nome_funcionario}')
-
+        self.timer = QTimer(self)
         #ESCONDER ICONES DO MENU E CONFIGURAR INDICE DA PAG INICIAL
         self.ui.menu_icons.hide()
         self.ui.stackedWidget.setCurrentIndex(0)
         self.ui.btnIconMenu.setChecked(True)
-
+        self.timer = QTimer(self)
         #FUNÇAO DOS BOTOES VOLTAR
         self.ui.btnVoltarLAberto.clicked.connect(self.on_btnVoltarLateral_clicked)
         
@@ -46,84 +60,21 @@ class Config_TelasSeguranca(QMainWindow):
         self.ui.btnDesconectarLAberto.clicked.connect(self.abrirTelaLogin)
 
         #=============CONFIG PAG SCANNER=============
-        self.ui.btnScannerLateral.clicked.connect(self.cameraReconhecimento)
+        self.ui.btnScanner.clicked.connect(self.chamarExibirDadosValidacaoNovamente)
+        self.ui.btnScannerLateral.clicked.connect(self.chamarExibirDadosValidacaoNovamente)
+        
+
+        self.ui.etyPesquisar_PgEntradas.textChanged.connect(self.filtrarTabela)
+
 
     #----------------------------------------------------------------------
     #----------------------------------------------------------------------
     #                    FUNÇOES DA CLASSE DIRETOR                        -
     #----------------------------------------------------------------------
     #----------------------------------------------------------------------          
-    def cameraReconhecimento(self):
+    def consultar_aluno(self):
+        self.executarAudioValidacao()
         
-        # Inicialize a conexão com o banco de dados
-        conn = sqlite3.connect('bd/scannerRF.db')
-        c = conn.cursor()
-
-        # Inicialize o reconhecedor facial
-        recognizer = cv2.face.LBPHFaceRecognizer_create()
-        recognizer.read('rec_facial/treinamento.yml')
-
-        # Inicialize a câmera
-        capture = cv2.VideoCapture(0)
-
-        #Define o Tamanho da largura na captura de acordo com o tamanho da webcam 
-        capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-
-        #Define o Tamanho da altura na captura de acordo com o tamanho da webcam 
-        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
-        # Inicialize o classificador de face
-        classificador = cv2.CascadeClassifier('rec_facial/haarcascade_frontalface_default.xml')
-
-        # Inicialize o mecanismo de fala
-        engine = pyttsx3.init()
-
-        def consultar_aluno(id_aluno):
-            c.execute("SELECT nome_aluno, rm_aluno FROM aluno WHERE id_aluno = ?", (id_aluno,))
-            resultado = c.fetchone()
-            if resultado:
-                nome_aluno, rm_aluno = resultado
-                if rm_aluno:
-                    return f"{nome_aluno} está matriculado."
-                else:
-                    return f"{nome_aluno} não está matriculado."
-            else:
-                return "Aluno não encontrado."
-
-        while True:
-            # Capture o frame da câmera
-            _, imagem = capture.read()
-
-            # Converta a imagem para escala de cinza
-            imagem_cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-
-            # Detecte rostos na imagem
-            faces = classificador.detectMultiScale(imagem_cinza, scaleFactor=1.5, minNeighbors=5)
-
-            for (x, y, w, h) in faces:
-                # Realize o reconhecimento facial
-                id_aluno, confianca = recognizer.predict(imagem_cinza[y:y + h, x:x + w])
-
-                mensagem = consultar_aluno(id_aluno)
-
-                # Exiba o retângulo ao redor do rosto
-                cv2.rectangle(imagem, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
-                # Fale o status do aluno
-                engine.say(mensagem)
-                engine.runAndWait()
-
-            # Exiba a imagem capturada
-            cv2.imshow('Reconhecimento Facial', imagem)
-
-            # Saia do loop quando a tecla 'q' for pressionada
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        # Libere a câmera e feche todas as janelas
-        capture.release()
-        cv2.destroyAllWindows()
-        conn.close()
 
     ## Change QPushButton Checkable status when stackedWidget index changed
     def on_stackedWidget_currentChanged(self, index):
@@ -145,6 +96,7 @@ class Config_TelasSeguranca(QMainWindow):
 
     #botao que ira redirecionar p/ pag entradas
     def on_btnEntradas_clicked(self):
+        self.inserirDadosTabelaEntrada()
         self.ui.stackedWidget.setCurrentIndex(1)
 
     #================BOTOES DO MENU LATERAL================
@@ -162,8 +114,10 @@ class Config_TelasSeguranca(QMainWindow):
 
     #botoes que ira redirecionar p/ pag entradas
     def on_btnEntradasLateral_clicked(self):
+        self.inserirDadosTabelaEntrada()
         self.ui.stackedWidget.setCurrentIndex(1)
     def on_btnEntradasLAberto_clicked(self):
+        self.inserirDadosTabelaEntrada()
         self.ui.stackedWidget.setCurrentIndex(1)
 
     #funcao para verificar a pagina atual e funcionar o botão voltar
@@ -193,4 +147,181 @@ class Config_TelasSeguranca(QMainWindow):
         #fecha a tela anterior
         self.close()  
 
+    def inserirDadosTabelaEntrada(self):#botao que redireciona para a pag de cadastro
+        nomeTela = 'Seguranca'
+        nome_funcionario = self.nome_funcionario
+        # Conectar ao banco de dados (substitua 'seu_banco_de_dados.db' pelo nome do seu banco de dados)
+        dados_entrada = self.classeEntrada.dadosTabelaEntrada(nomeTela, nome_funcionario)
 
+        if dados_entrada == "Não há dados para a exibição.":
+            QMessageBox.warning(self, "Aviso", "Não foi possível exibir dados da tabela.")
+        else:
+            # Preencher a tabela com os dados do banco de dados
+            self.ui.tbl_historicoEntradas.setRowCount(len(dados_entrada))
+            for row, data in enumerate(dados_entrada):
+                for col, value in enumerate(data):
+                    item = QTableWidgetItem(str(value))
+                    self.ui.tbl_historicoEntradas.setItem(row, col, item)
+    
+    def filtrarTabela(self):
+        search_text = self.ui.etyPesquisar_PgEntradas.text().lower()
+        for row in range(self.ui.tbl_historicoEntradas.rowCount()):
+            row_hidden = True
+            for col in range(self.ui.tbl_historicoEntradas.columnCount()):
+                item = self.ui.tbl_historicoEntradas.item(row, col)
+                if item.text().lower().startswith(search_text):
+                    row_hidden = False
+                    break
+            self.ui.tbl_historicoEntradas.setRowHidden(row, row_hidden)
+
+    def chamarExibirDadosValidacaoNovamente(self):
+        self.exibirDadosValidacao()
+
+    def limparReco(self):
+        # Limpe os widgets ou labels se necessário
+        self.ui.lbl_nomeAluno.setText("")
+        self.ui.lbl_RmAluno.setText("")
+        self.ui.lbl_periodoAluno.setText("")
+        self.ui.lbl_infosAcesso.setText("")
+        self.ui.lbl_imgValidacao.clear()
+        self.ui.lbl_imgStatusHorario.clear()
+
+
+    #dados que irão ser exibidos apos validar o rosto do aluno
+    def exibirDadosValidacao(self):
+        self.limparReco()
+
+        result_list = self.Teste.start()
+
+        dados_dia = datetime.now()  # setando na variável os dados do dia (dia, mês, ano, hora, etc.)
+        data_hoje_formatada = dados_dia.strftime("%d/%m/%Y")  # setando na variável a data formatada (00/00/0000)
+        horario_hoje_formatado = dados_dia.strftime("%H:%M")  # setando na variável o horário formatado (00:00)
+        self.ui.lbl_dataDoDia.setText(data_hoje_formatada)  # setando o dia formatado na label
+        self.ui.lbl_horarioDoDia.setText(horario_hoje_formatado)  # setando o horário formatado na label
+
+        if result_list is not None:
+            if len(result_list) == 4:
+                id_turma, nome_aluno, rm_aluno, resultado = result_list
+                
+                consulta_aluno = "SELECT * FROM aluno WHERE rm_aluno = ?"  # consulta SQL para selecionar os dados da turma com base no ID
+                BancoTcc.cursor.execute(consulta_aluno, (rm_aluno,))
+                dados_aluno = BancoTcc.cursor.fetchone()
+
+                id_aluno = dados_aluno[0]
+                id_turma = dados_aluno[1]
+                rm_aluno = dados_aluno[2]
+                nome_aluno = dados_aluno[3]
+
+                consulta_turma = "SELECT * FROM turma WHERE id_turma = ?"  # consulta SQL para selecionar os dados da turma com base no ID
+                BancoTcc.cursor.execute(consulta_turma, (id_turma,))
+                dados_turma = BancoTcc.cursor.fetchone()  # armazenando os dados da turma
+
+                id_periodo = dados_turma[2]  # variável que recebe o ID do período, '2' é a coluna onde o ID do período está
+
+                consulta_periodo = "SELECT * FROM periodo WHERE id_periodo = ?"  # consulta SQL para selecionar os dados do período com base no ID do período
+                BancoTcc.cursor.execute(consulta_periodo, (id_periodo,))
+                dados_periodo = BancoTcc.cursor.fetchone()  # armazenando os dados do período
+
+                turno_periodo = dados_periodo[1]  # variável que recebe o turno do curso, '1' é a coluna onde o turno do curso está
+                print(turno_periodo)
+
+                self.ui.lbl_nomeAluno.setText(nome_aluno)
+                self.ui.lbl_RmAluno.setText(str(rm_aluno))
+                self.ui.lbl_periodoAluno.setText(turno_periodo)
+
+                # Obtenha o horário atual
+                horario_atual = datetime.now().time()
+
+                # Defina os horários de entrada e limite para cada período
+                horario_entrada_min_MANHA = time(6, 45)
+                horario_entrada_max_MANHA = time(7, 0)
+                horario_limite_MANHA = time(7, 15)
+
+                horario_entrada_min_TAR = time(12, 45)
+                horario_entrada_max_TAR = time(13, 0)
+                horario_limite_TAR = time(13, 15)
+
+                horario_entrada_min_NOI = time(18, 15)
+                horario_entrada_max_NOI = time(19, 0)
+                horario_limite_NOI = time(19, 15)
+
+                pixmap = QPixmap("imagens/simbolo_validado.png")  # imagem da validação central
+                pixmap2 = QPixmap("imagens/relogio.png")  # imagem do status do horário
+
+                # Defina a imagem na QLabel
+                self.ui.lbl_imgValidacao.setPixmap(pixmap)
+                self.ui.lbl_imgStatusHorario.setPixmap(pixmap2)
+                pixmap2 = pixmap.scaled(60, 70)
+
+                if turno_periodo == 'Manhã':
+                    if horario_atual < horario_entrada_min_MANHA:
+                        self.ui.lbl_infosAcesso.setMinimumSize(350, 22)
+                        status_horario = 'adiantado'
+                    elif horario_atual >= horario_entrada_min_MANHA and horario_atual <= horario_entrada_max_MANHA:
+                        self.ui.lbl_infosAcesso.setMinimumSize(300, 22)
+                        status_horario = 'no horário'
+                    elif horario_atual > horario_entrada_max_MANHA and horario_atual <= horario_limite_MANHA:
+                        self.ui.lbl_infosAcesso.setMinimumSize(300, 22)
+                        status_horario = 'atrasado'
+                    else: 
+                        self.ui.lbl_infosAcesso.setMinimumSize(450, 22)
+                        status_horario = 'limite excedido'
+                elif turno_periodo == 'Tarde':
+                    if horario_atual < horario_entrada_min_TAR:
+                        self.ui.lbl_infosAcesso.setMinimumSize(350, 22)
+                        status_horario = 'adiantado'
+                    elif horario_atual >= horario_entrada_min_TAR and horario_atual <= horario_entrada_max_TAR:
+                        self.ui.lbl_infosAcesso.setMinimumSize(300, 22)
+                        status_horario = 'no horário'
+                    elif horario_atual > horario_entrada_max_TAR and horario_atual <= horario_limite_TAR:
+                        self.ui.lbl_infosAcesso.setMinimumSize(300, 22)
+                        status_horario = 'atrasado'
+                    else: 
+                        self.ui.lbl_infosAcesso.setMinimumSize(450, 22)
+                        status_horario = 'limite excedido'
+                else:
+                    if horario_atual < horario_entrada_min_NOI:
+                        self.ui.lbl_infosAcesso.setMinimumSize(350, 22)
+                        status_horario = 'adiantado'
+                    elif horario_atual >= horario_entrada_min_NOI and horario_atual <= horario_entrada_max_NOI:
+                        self.ui.lbl_infosAcesso.setMinimumSize(300, 22)
+                        status_horario = 'no horário'
+                    elif horario_atual > horario_entrada_max_NOI and horario_atual <= horario_limite_NOI:
+                        self.ui.lbl_infosAcesso.setMinimumSize(300, 22)
+                        status_horario = 'atrasado'
+                    else:
+                        self.ui.lbl_infosAcesso.setMinimumSize(450, 22)
+                        status_horario = 'limite excedido'
+
+                if status_horario == 'adiantado':
+                    self.ui.lbl_infosAcesso.setText("Acesso liberado: adiantado")
+                elif status_horario == 'no horário':
+                    self.ui.lbl_infosAcesso.setText("Acesso liberado: no horário")
+                elif status_horario == 'atrasado':
+                    self.ui.lbl_infosAcesso.setText("Acesso liberado: atrasado")
+                else:
+                    self.ui.lbl_infosAcesso.setText("Acesso não liberado: limite excedido")
+
+
+                BancoTcc.cursor.execute("INSERT INTO entrada (nome_aluno, rm_aluno, periodo, data_entrada, horario_entrada, status_horario, nome_seguranca) VALUES (?, ?, ?, ?, ?, ?, ?)", ( nome_aluno, rm_aluno, turno_periodo, data_hoje_formatada, str(horario_atual)[:5], status_horario, self.nome_funcionario))
+                BancoTcc.conn.commit()
+                
+                self.timer.timeout.connect(self.chamarExibirDadosValidacaoNovamente)
+                self.timer.start(5000)  # 5000 milissegundos = 5 segundos
+            else:
+                nome_aluno = rm_aluno = turno_periodo = 'Não encontrado'
+
+                self.ui.lbl_nomeAluno.setText(nome_aluno)
+                self.ui.lbl_RmAluno.setText(str(rm_aluno))
+                self.ui.lbl_periodoAluno.setText(turno_periodo)
+
+                pixmap3 = QPixmap("imagens/simbolo_negado.png")  # imagem do status do horário
+                pixmap3 = pixmap3.scaled(140, 140)
+                self.ui.lbl_imgValidacao.setPixmap(pixmap3)
+                
+                resultado = result_list[0]
+
+                self.timer.timeout.connect(self.chamarExibirDadosValidacaoNovamente)
+                self.timer.start(5000)
+        else:
+            pass

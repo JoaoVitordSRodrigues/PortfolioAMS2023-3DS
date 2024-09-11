@@ -11,8 +11,22 @@ from PyQt5.QtCore import pyqtSlot, QTextStream
 from main import MainWindow
 #importando da pasta 'telas_py' as telas do diretor em python
 from telas_py.telas_Diretor import Ui_MainWindow as Ui_Telas_Diretor
+#importando da pasta 'classes' a classe aluno em python
+from classes.Aluno import Aluno
+#importando da pasta 'classes' a classe turma em python
+from classes.Turma import Turma
+#importando da pasta 'classes' a classe entrada em python
+from classes.Entrada import Entrada
+
+from rec_facial.cadastro_face import Face
 from PyQt5.QtCore import Qt
 import re
+import cv2
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QLineEdit
+from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtCore import QTimer
+import numpy as np
+import time
 
 #=========================================================================#
 #                                                                         #
@@ -26,18 +40,21 @@ class Config_TelasDiretor(QMainWindow):
         self.ui = Ui_Telas_Diretor()
         self.ui.setupUi(self)
 
+        #instancia da classe aluno para executar as funções
+        self.classeAluno = Aluno()
+
+        self.classeTurma = Turma()
+
+        self.classeEntrada = Entrada()
+
+        self.Face = Face()
+
         #variavel que recebe o nome do funcionario
         self.nome_funcionario = nome_funcionario
         #setando o nome do funcionario na label da pagina de inicio
         self.ui.lbl_NomeHome.setText(f'Olá, Dir. {self.nome_funcionario}')
         #variaveis utilizadas para o crud, que serao acessadas por algumas funcoes
-        self.id_aluno = None
-        self.turno_periodoAtt = None #turno periodo para exibir na pag atualizar
-        self.nome_cursoAtt = None #nome curso para exibir na pag atualizar
-        self.serie_turmaAtt = None #serie turma para exibir na pag atualizar
-        self.face_aluno = None#face que ira ser usada para cadastrar
-        self.face_alunoAtt = None#face que ira ser usada atualizar
-
+        self.id_aluno = None #utilizada para excluir o aluno
 
         #ESCONDER ICONES DO MENU E CONFIGURAR INDICE DA PAG INICIAL
         self.ui.menu_icons.hide()
@@ -69,7 +86,6 @@ class Config_TelasDiretor(QMainWindow):
         #=============================================================================================
 
 
-
         #=============================================================================================
         #==================================CONFIG PAG DADOS ALUNO=====================================
         #=============================================================================================
@@ -78,7 +94,6 @@ class Config_TelasDiretor(QMainWindow):
         #botao que ira redirecionar p/ pag atualizar aluno com os dados do aluno
         self.ui.btnAtualizarAluno_PgAtualizar_2.clicked.connect(self.btnAtualizarAluno_PgDadosAluno)
         #=============================================================================================
-
 
 
         #=============================================================================================
@@ -112,7 +127,6 @@ class Config_TelasDiretor(QMainWindow):
         #=============================================================================================
 
 
-
         #=============================================================================================
         #================================CONFIG PAG ATUALIZAR ALUNO===================================
         #============================================================================================= 
@@ -139,7 +153,6 @@ class Config_TelasDiretor(QMainWindow):
         #botao que ira atualizar os dados do aluno   
         self.ui.btnAtualizarAluno_PgAtualizar.clicked.connect(self.atualizarAluno)
         #=============================================================================================
-
 
 
         #=============================================================================================
@@ -170,17 +183,7 @@ class Config_TelasDiretor(QMainWindow):
         self.exibirCursosPorPeriodo_PgPesquisar()  #inicialmente, exibe todos os cursos
         #=============================================================================================
 
-
-
-
-
-
-
-
-
-
-
-
+        self.ui.etyPesquisar_PgEntradas.textChanged.connect(self.filter_table)
 
 
 
@@ -217,6 +220,7 @@ class Config_TelasDiretor(QMainWindow):
 
     #botao que ira redirecionar p/ pag entradas
     def on_btnEntradas_clicked(self):
+        self.inserirDadosTabelaEntrada()
         self.ui.stackedWidget.setCurrentIndex(2)
 
     #================BOTOES DO MENU LATERAL================
@@ -234,8 +238,10 @@ class Config_TelasDiretor(QMainWindow):
 
     #botoes que ira redirecionar p/ pag entradas
     def on_btnEntradasLateral_clicked(self):
+        self.inserirDadosTabelaEntrada()
         self.ui.stackedWidget.setCurrentIndex(2)
     def on_btnEntradasLAberto_clicked(self):
+        self.inserirDadosTabelaEntrada()
         self.ui.stackedWidget.setCurrentIndex(2)
 
     #funcao para verificar a pagina atual e funcionar o botão voltar
@@ -282,6 +288,38 @@ class Config_TelasDiretor(QMainWindow):
     '''
 
 
+    #=================================================================================================
+    #================FUNCAO PAG ENTRADA===============================================================
+    #=================================================================================================
+    def inserirDadosTabelaEntrada(self):#botao que redireciona para a pag de cadastro
+        nomeTela = 'Diretor'
+        nome_funcionario = self.nome_funcionario
+        dados_entrada = self.classeEntrada.dadosTabelaEntrada(nomeTela, nome_funcionario)
+
+        if dados_entrada == "Não há dados para a exibição.":
+            QMessageBox.warning(self, "Aviso", "Não foi possível exibir dados da tabela.")
+        else:
+            # Preencher a tabela com os dados do banco de dados
+            self.ui.tbl_historicoEntradas.setRowCount(len(dados_entrada))
+            for row, data in enumerate(dados_entrada):
+                for col, value in enumerate(data):
+                    item = QTableWidgetItem(str(value))
+                    self.ui.tbl_historicoEntradas.setItem(row, col, item)
+
+    def filter_table(self):
+        search_text = self.ui.etyPesquisar_PgEntradas.text().lower()
+        for row in range(self.ui.tbl_historicoEntradas.rowCount()):
+            row_hidden = True
+            for col in range(self.ui.tbl_historicoEntradas.columnCount()):
+                item = self.ui.tbl_historicoEntradas.item(row, col)
+                if item.text().lower().startswith(search_text):
+                    row_hidden = False
+                    break
+            self.ui.tbl_historicoEntradas.setRowHidden(row, row_hidden)
+
+    #=================================================================================================
+    #=================================================================================================
+
 
     #=================================================================================================
     #================FUNCAO PAG ALUNOS================================================================
@@ -291,7 +329,6 @@ class Config_TelasDiretor(QMainWindow):
         self.ui.stackedWidget.setCurrentIndex(3)
         #iniciando as variaveis de face do aluno para assim a validação de inserção obrigatoria de imagem da certo
         self.face_aluno = None#face que ira ser usada para cadastrar
-        self.face_alunoAtt = None#face que ira ser usada atualizar
     def on_btnPgProcurarAlunos_PgAlunos_clicked(self):#botao que redireciona para a pag de procurar
         self.ui.stackedWidget.setCurrentIndex(5)
     #=================================================================================================
@@ -336,108 +373,37 @@ class Config_TelasDiretor(QMainWindow):
                 self.ui.cboxTurma_PgPesquisar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid green; color:#ffffff')         
         #se os campos estiverem preechidos
         else:
-            #variaveis que irao armazenar os id's do periodo e curso
-            id_periodo = 0
-            id_curso = 0
+            resultado = self.classeTurma.visualizarTurma(periodo, curso, serie_turma)
 
-            #setando o id do periodo
-            if(periodo == 'Manhã'):
-                id_periodo = id_periodo + 1
-            elif(periodo == 'Tarde'):
-                id_periodo = id_periodo + 2
-            else:#periodo da noite
-                id_periodo = id_periodo + 3
+            if resultado == "Turma não encontrada. A turma pesquisada não existe.":
+                QMessageBox.information(self, "Sem resultados!", resultado)
 
-            #setando o id do curso
-            if(curso == 'Administração'):
-                id_curso = id_curso + 1
-            elif(curso == 'Contabilidade'):
-                id_curso = id_curso + 2
-            elif(curso == 'Desenvolvimento de Sistemas'):
-                id_curso = id_curso + 3
-            elif(curso == 'Logística'):
-                id_curso = id_curso + 4
-            elif(curso == 'Recursos Humanos'):
-                id_curso = id_curso + 5
-            else:#servicos juridicos
-                id_curso = id_curso + 6
-            
-            #consulta a tabela 'turma' para encontrar o id da turma correspondente
-            BancoTcc.cursor.execute("SELECT id_turma FROM turma WHERE id_periodo = ? AND id_curso = ? AND serie_turma = ?", (id_periodo, id_curso, serie_turma))
-            #armazena o resultado da busca na variavel
-            resultado_busca = BancoTcc.cursor.fetchone()
-            #se a busca obter dados
-            if resultado_busca:
-                id_turma = resultado_busca[0]  #id da turma na qual foi buscada
-                consulta_turma = "SELECT * FROM turma WHERE id_turma = ?"  #consulta SQL para selecionar os dados da turma com base no id
-                BancoTcc.cursor.execute(consulta_turma, (id_turma,))
-                dados_turma = BancoTcc.cursor.fetchone()  #armazenando os dados da turma 
-                #se obter os dados da turma de acordo com o id da turma
-                if dados_turma is not None:
-                    id_curso = dados_turma[1]  #variavel que recebe o id do curso, '1' é coluna em que o id do curso esta 
-                    id_periodo = dados_turma[2]  #variavel que recebe o id do periodo, '2' é coluna em que o id do periodo esta 
-                    serie_turma = dados_turma[3] #variavel que recebe o id da serie, '3' é coluna em que o id da serie esta 
-
-                    consulta_curso = "SELECT * FROM curso WHERE id_curso = ?"  #consulta SQL para selecionar os dados do curso com base no id do curso
-                    BancoTcc.cursor.execute(consulta_curso, (id_curso,))
-                    dados_curso = BancoTcc.cursor.fetchone()  #armazenando os dados do curso
-  
-                    consulta_periodo = "SELECT * FROM periodo WHERE id_periodo = ?"  #consulta SQL para selecionar os dados do período com base no id do período
-                    BancoTcc.cursor.execute(consulta_periodo, (id_periodo,))
-                    dados_periodo = BancoTcc.cursor.fetchone()  #armazenando os dados do periodo
-
-                    #se obter os dados do curso e do periodo
-                    if dados_curso is not None and dados_periodo is not None:
-                        nome_curso = dados_curso[1]  #variavel que recebe o nome do curso, '1' é coluna em que o nome do curso esta 
-                        turno_periodo = dados_periodo[1]  #variavel que recebe o turno do curso, '1' é coluna em que o turno do curso esta 
-
-                        #consulta SQL para buscar dados dos alunos com base no ID da turma
-                        consulta_sql = "SELECT nome_aluno, rm_aluno FROM aluno WHERE id_turma = ?"
-                        BancoTcc.cursor.execute(consulta_sql, (id_turma,))
-                        dados_alunos = BancoTcc.cursor.fetchall()  #armazenando os dados do aluno
-
-                        #preenchendo a tabela com os dados dos alunos na pagina de visualização dos dados da turma
-                        self.ui.tbl_Alunos.setRowCount(len(dados_alunos))#lendo o tamanho dos dados do aluno, e setando os valores na tabela
-                        for row, data in enumerate(dados_alunos):
-                            for col, value in enumerate(data):
-                                item = QTableWidgetItem(str(value))
-                                #setando os valores na tabela dos alunos da turma
-                                self.ui.tbl_Alunos.setItem(row, col, item)
-
-                        #setando o nome abreviado do curso para exibição
-                        if(id_curso == 1):
-                            nomeAbrevi_curso = 'ADM'
-                        elif(nome_curso == 2):
-                            nomeAbrevi_curso = 'CONT'
-                        elif(nome_curso == 3):
-                            nomeAbrevi_curso = 'DS'
-                        elif(nome_curso == 4):
-                            nomeAbrevi_curso = 'LOG'
-                        elif(nome_curso == 5):
-                            nomeAbrevi_curso = 'RH'
-                        else:#servicos juridicos
-                            nomeAbrevi_curso = 'JUR'
-
-                        #setando os dados na pag Dados Turma para a visualização
-                        self.ui.lbl_NomeTurma_PgDadosTurma.setText(serie_turma + ' ' + nomeAbrevi_curso + ' - ' + turno_periodo.upper())
-                        self.ui.lbl_NomeCurso_PgDadosTurma.setText(nome_curso)
-                        self.ui.lbl_Periodo_PgDadosTurma.setText(turno_periodo)
-                        self.ui.lbl_Serie_PgDadosTurma.setText(serie_turma)
-                        self.ui.lbl_QtdAlunos_PgDadosTurma.setText(str(len(dados_alunos)))
-                        #redirecionando para a pagina de visualização
-                        self.ui.stackedWidget.setCurrentIndex(6)
-                    #se nao obter os dados do curso e do periodo
-                    else:
-                        QMessageBox.information(self, "Sem resultados!", "Nenhum resultado encontrado para o ID do Curso ou do Período.")
-                #se nao obter os dados da turma
-                else:
-                    QMessageBox.information(self, "Sem resultados!", "Nenhum resultado encontrado para o ID da Turma.")
-            #se a busca não obter dados
+            elif resultado == "Nenhum resultado encontrado para o ID da Turma.":
+                QMessageBox.information(self, "Sem resultados!", resultado)
+       
+            elif resultado == "Nenhum resultado encontrado para o ID do Curso ou do Período.":
+                QMessageBox.information(self, "Sem resultados!", resultado)
             else:
-                QMessageBox.information(self, "Turma não encontrada", "Turma não encontrada. A turma pesquisada não existe.")
+                serie_turma, nomeAbrevi_cursoPgTurma, turno_periodo, nome_curso, dados_alunos = resultado
 
-            #limpando os campos da pesquisa e setando os valores iniciais
-            self.restaurarCampos()
+                #preenchendo a tabela com os dados dos alunos na pagina de visualização dos dados da turma
+                self.ui.tbl_Alunos.setRowCount(len(dados_alunos))#lendo o tamanho dos dados do aluno, e setando os valores na tabela
+                for row, data in enumerate(dados_alunos):
+                    for col, value in enumerate(data):
+                        item = QTableWidgetItem(str(value))
+                        #setando os valores na tabela dos alunos da turma
+                        self.ui.tbl_Alunos.setItem(row, col, item)
+
+                #setando os dados na pag Dados Turma para a visualização
+                self.ui.lbl_NomeTurma_PgDadosTurma.setText(serie_turma + ' ' + nomeAbrevi_cursoPgTurma + ' - ' + turno_periodo.upper())
+                self.ui.lbl_NomeCurso_PgDadosTurma.setText(nome_curso)
+                self.ui.lbl_Periodo_PgDadosTurma.setText(turno_periodo)
+                self.ui.lbl_Serie_PgDadosTurma.setText(serie_turma)
+                self.ui.lbl_QtdAlunos_PgDadosTurma.setText(str(len(dados_alunos)))
+                #redirecionando para a pagina de visualização
+                self.ui.stackedWidget.setCurrentIndex(6)
+                #limpando os campos da pesquisa e setando os valores iniciais
+                self.restaurarCampos()
                        
     #botao que ira redirecionar p/ pag alunoRm com os dados do aluno pesquisado
     def btnBuscarRm(self):
@@ -456,89 +422,47 @@ class Config_TelasDiretor(QMainWindow):
         elif not re.match(r'^\d+$', rm):
             QMessageBox.warning(self, "Aviso", "O RM deve conter apenas números.")  #mensagem informando o usuario p/ digitar apenas numeros
             self.ui.etyPesquisarRM_PgPesquisar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
-            return  #saia da função se o RM for inválido
         #se os campos estiverem preechidos corretamente
         else:
-            consulta_sql = "SELECT * FROM aluno WHERE rm_aluno = ?"  #consulta sql que selcionar os dados do aluno de acordo com o rm dele
-            BancoTcc.cursor.execute(consulta_sql, (rm,))
-            dados_aluno = BancoTcc.cursor.fetchone()  #armazenando os dados do aluno
-            #se obter os dados do aluno
-            if dados_aluno:
-                self.id_aluno = dados_aluno[0]  #variavel que recebe o id do aluno, o '0' é a coluna em que o id do aluno esta
-                id_turma = dados_aluno[1]  #variavel que recebe o id do curso, '1' é coluna em que o id do curso esta 
-                rm_aluno = dados_aluno[2]  #variavel que recebe o id do periodo, '2' é coluna em que o id do periodo esta 
-                nome_aluno = dados_aluno[3]  #variavel que recebe o nome do aluno, o '3' é a coluna em que o nome do aluno esta
-                self.face_alunoAtt = dados_aluno[4]  #variavel que recebe a face do aluno, o '4' é a coluna em que a face do aluno esta
+            #importando da classe aluno o metodo de cadastrar
+            self.classeAluno.visualizarAluno(rm)
+            resultado = self.classeAluno.visualizarAluno(rm)      
 
-                consulta_turma = "SELECT * FROM turma WHERE id_turma = ?"  #consulta SQL para selecionar os dados da turma com base no id
-                BancoTcc.cursor.execute(consulta_turma, (id_turma,))
-                dados_turma = BancoTcc.cursor.fetchone()  #armazenando os dados da turma 
-                #se obter os dados da turma
-                if dados_turma is not None:
-                    id_curso = dados_turma[1]  #variavel que recebe o id do curso, '1' é coluna em que o id do curso esta 
-                    id_periodo = dados_turma[2]  #variavel que recebe o id do periodo, '2' é coluna em que o id do periodo esta 
-                    serie_turma = dados_turma[3] #variavel que recebe o id da serie, '3' é coluna em que o id da serie esta 
-
-                    #consulta SQL para selecionar os dados do curso com base no id do curso
-                    consulta_curso = "SELECT * FROM curso WHERE id_curso = ?"
-                    BancoTcc.cursor.execute(consulta_curso, (id_curso,))
-                    dados_curso = BancoTcc.cursor.fetchone()  #armazenando os dados do curso
-
-                    #consulta SQL para selecionar os dados do período com base no id do período
-                    consulta_periodo = "SELECT * FROM periodo WHERE id_periodo = ?"
-                    BancoTcc.cursor.execute(consulta_periodo, (id_periodo,))
-                    dados_periodo = BancoTcc.cursor.fetchone()  #armazenando os dados do periodo
-
-                    #se obter os dados do curso e do periodo
-                    if dados_curso is not None and dados_periodo is not None:
-                        nome_curso = dados_curso[1]  #variavel que recebe o nome do curso, '1' é coluna em que o nome do curso esta 
-                        turno_periodo = dados_periodo[1]  #variavel que recebe o turno do curso, '1' é coluna em que o turno do curso esta 
-
-                        #setando o nome abreviado do curso para exibição
-                        if(id_curso == 1):
-                            nomeAbrevi_curso = 'ADM'
-                        elif(nome_curso == 2):
-                            nomeAbrevi_curso = 'CONT'
-                        elif(nome_curso == 3):
-                            nomeAbrevi_curso = 'DS'
-                        elif(nome_curso == 4):
-                            nomeAbrevi_curso = 'LOG'
-                        elif(nome_curso == 5):
-                            nomeAbrevi_curso = 'RH'
-                        else:#servicos juridicos
-                            nomeAbrevi_curso = 'JUR'
-
-                        #setando os dados na pag Dados Turma para a visualização
-                        self.ui.lbl_Nome_PgDadosAluno.setText(nome_aluno)
-                        self.ui.lbl_Rm_PgDadosAluno.setText(str(rm_aluno))
-                        self.ui.lbl_Periodo_PgDadosAluno.setText(turno_periodo)
-                        self.ui.lbl_NomeCurso_PgDadosAluno.setText(nome_curso)
-                        self.ui.lbl_Turma_PgDadosAluno.setText(serie_turma + ' ' + nomeAbrevi_curso + ' - ' + turno_periodo.upper())                
-                        # Crie um QPixmap a partir dos dados da imagem
-                        pixmap = QPixmap()
-                        pixmap.loadFromData(self.face_alunoAtt)
-                        # Defina o QPixmap na label
-                        self.ui.lbl_ImgAluno_PgDadosAluno.setPixmap(pixmap)
-                        self.ui.lbl_ImgAluno_PgDadosAluno.setScaledContents(True)
-
-                        #setando os dados nas variaveis que foram iniciadas no 'def __init__', nas configs iniciais
-                        self.turno_periodoAtt = turno_periodo
-                        self.nome_cursoAtt = nome_curso
-                        self.serie_turmaAtt = serie_turma
-                        
-                        #redirecionando para pagina de dados do alunos
-                        self.ui.stackedWidget.setCurrentIndex(7)
-                    #se nao obter os dados do curso e do periodo
-                    else:
-                        QMessageBox.information(self, "Sem resultados!", "Nenhum resultado encontrado para o ID do curso ou do período.")   
-                #se nao obter os dados da turma
-                else:
-                    QMessageBox.information(self, "Informação", "Nenhuma turma encontrada com o id informado.")
-            #se nao obter os dados do aluno    
+            if resultado == "Nenhum aluno encontrado com o RM informado.":
+                QMessageBox.warning(self, "Aviso", resultado) 
+                self.ui.etyPesquisarRM_PgPesquisar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+            elif resultado == "Nenhuma turma encontrada com o id informado.":
+                QMessageBox.warning(self, "Aviso", resultado) 
+            elif resultado == "Nenhum resultado encontrado para o ID do curso ou do período.":
+                QMessageBox.warning(self, "Aviso", resultado) 
             else:
-                QMessageBox.information(self, "Informação", "Nenhum aluno encontrado com o RM informado.")
-            #limpando os campos e setando os valores iniciais
-            self.restaurarCampos()
+                id_aluno, nome_aluno, rm_aluno, turno_periodo, nome_curso, serie_turma, nomeAbrevi_curso, imagem_aluno = resultado
+                #setando os dados na pag Dados Turma para a visualização
+                self.ui.lbl_Nome_PgDadosAluno.setText(nome_aluno)
+                self.ui.lbl_Rm_PgDadosAluno.setText(str(rm_aluno))
+                self.ui.lbl_Periodo_PgDadosAluno.setText(turno_periodo)
+                self.ui.lbl_NomeCurso_PgDadosAluno.setText(nome_curso)
+                self.ui.lbl_Turma_PgDadosAluno.setText(serie_turma + ' ' + nomeAbrevi_curso + ' - ' + turno_periodo.upper())                
+                # Crie um QPixmap a partir dos dados da imagem
+                pixmap = QPixmap()
+                pixmap.loadFromData(imagem_aluno)
+                # Defina o QPixmap na label
+                self.ui.lbl_ImgAluno_PgDadosAluno.setPixmap(pixmap)
+                self.ui.lbl_ImgAluno_PgDadosAluno.setScaledContents(True)
+
+                self.id_aluno = id_aluno            
+                self.nome_alunoAtualizar = nome_aluno
+                self.rm_alunoAtualizar = rm_aluno
+                self.turno_periodoAtualizar = turno_periodo
+                self.nome_cursoAtualizar = nome_curso
+                self.serie_turmaAtualizar = serie_turma
+                self.face_alunoAtualizar = imagem_aluno
+                
+                #redirecionando para pagina de dados do alunos
+                self.ui.stackedWidget.setCurrentIndex(7)
+
+                #limpando os campos e setando os valores iniciais
+                self.restaurarCampos()
 
     #funcao que ira limpar os campos e setar os valores iniciais
     def restaurarCampos(self):
@@ -563,30 +487,26 @@ class Config_TelasDiretor(QMainWindow):
     #=============FUNCAO PAG DADOS ALUNO==============================================================
     #=================================================================================================
     #botao que ira redirecionar p/ pag de atualizar os dados do aluno
-    def btnAtualizarAluno_PgDadosAluno(self):  
-        #consulta sql que ira selecionar os dados do aluno com base no id do aluno   
-        consulta_aluno = "SELECT * FROM aluno WHERE id_aluno = ?"
-        BancoTcc.cursor.execute(consulta_aluno, (self.id_aluno,))
-        dados_aluno = BancoTcc.cursor.fetchone() #armazenando os dados do aluno 
-        #se obter os dados do aluno
-        if dados_aluno is not None:
-            #setando os campos com os valores do respectivo aluno contido no banco
-            self.ui.etyNome_PgAtualizar.setText(dados_aluno[3])  #'3' coluna em que esta o nome do aluno na tabela aluno
-            self.ui.etyRM_PgAtualizar.setText(str(dados_aluno[2]))  #'2' coluna em que esta o rm do aluno na tabela aluno
-            self.ui.cboxPeriodo_PgAtualizar.setCurrentText(self.turno_periodoAtt)
-            self.ui.cboxCurso_PgAtualizar.setCurrentText(self.nome_cursoAtt)
-            self.ui.cboxTurma_PgAtualizar.setCurrentText(self.serie_turmaAtt)
-            # Crie um QPixmap a partir dos dados da imagem
-            pixmap = QPixmap()
-            pixmap.loadFromData(self.face_alunoAtt)
-            # Defina o QPixmap na label
-            self.ui.lbl_ImgAluno_PgAtualizar.setPixmap(pixmap)
-            self.ui.lbl_ImgAluno_PgAtualizar.setScaledContents(True)
-            #redirecionando para a pag de atualizar aluno
-            self.ui.stackedWidget.setCurrentIndex(4)
-        #se nao obter os dados do aluno
-        else:
-            QMessageBox("Os dados do aluno estão ausentes ou são None. Por favor, verifique os dados.")  
+    def btnAtualizarAluno_PgDadosAluno(self): 
+        #setando os campos com os valores do respectivo aluno contido no banco
+        self.ui.etyNome_PgAtualizar.setText(self.nome_alunoAtualizar)  #'3' coluna em que esta o nome do aluno na tabela aluno
+        self.ui.etyRM_PgAtualizar.setText(str(self.rm_alunoAtualizar))  #'2' coluna em que esta o rm do aluno na tabela aluno
+        self.ui.cboxPeriodo_PgAtualizar.setCurrentText(self.turno_periodoAtualizar)
+        self.ui.cboxCurso_PgAtualizar.setCurrentText(self.nome_cursoAtualizar)
+        self.ui.cboxTurma_PgAtualizar.setCurrentText(self.serie_turmaAtualizar)
+        # Crie um QPixmap a partir dos dados da imagem
+        pixmap = QPixmap()
+        pixmap.loadFromData(self.face_alunoAtualizar)
+        pixmap = pixmap.scaled(200, 210)
+        # Defina o QPixmap na label
+        self.ui.lbl_ImgAluno_PgAtualizar.setPixmap(pixmap)
+        self.ui.lbl_ImgAluno_PgAtualizar.setScaledContents(True)
+
+        self.ui.etyRM_PgAtualizar.setDisabled(True)#047b55
+        self.ui.etyRM_PgAtualizar.setStyleSheet('background-color: #047b55; border-radius:5px; border: 2px solid #000000; color:#ffffff')
+        #redirecionando para a pag de atualizar aluno
+        self.ui.stackedWidget.setCurrentIndex(4)
+
     #botao que ira deletar o aluno de acordo com o id
     def deletarAluno(self):       
         dialogo = QMessageBox()#caixa de mensagem    
@@ -598,18 +518,15 @@ class Config_TelasDiretor(QMainWindow):
 
         #se o usuario clicar em 'ok' ira deletar o aluno
         if opcao_Selecionada == QMessageBox.Ok:
-            #se obter o id do aluno
-            if self.id_aluno is not None:
-                id_aluno_excluir = self.id_aluno  #id do aluno que ira ser excluido
-                #instrução sql que ira deletar o aluno com base no id do aluno
-                BancoTcc.cursor.execute("DELETE FROM aluno WHERE id_aluno = ?", (id_aluno_excluir,))
-                BancoTcc.conn.commit()
-                #mensagem que o aluno foi excluido
-                QMessageBox.information(self, "Exclusão do aluno concluída", "Cadastro do aluno deletado com sucesso!")
-                self.ui.stackedWidget.setCurrentIndex(5)#redirecionando para a pag pesquisar
+            id_aluno_excluir = self.id_aluno  #id do aluno que ira ser excluido 
+            resultado = self.classeAluno.deletarAluno(id_aluno_excluir) 
+            if resultado == "Cadastro do aluno deletado com sucesso!":
+                QMessageBox.warning(self, "Exclusão do aluno concluída", resultado)
+                self.id_aluno = None
+                self.ui.stackedWidget.setCurrentIndex(5) 
             #se nao obter o id do aluno
             else:
-                QMessageBox.warning(self, "Exclusão do aluno", "ID do aluno não definido. Selecione um aluno para excluir.")
+                QMessageBox.warning(self, "Exclusão do aluno", resultado)
         #se clicar em 'cancel' ira interromper a exclusão
         elif opcao_Selecionada == QMessageBox.Cancel:
             QMessageBox.warning(self, "Exclusão do aluno interrompida", "Exclusão interrompida com sucesso!")
@@ -630,7 +547,7 @@ class Config_TelasDiretor(QMainWindow):
         periodo = self.ui.cboxPeriodo_PgCadastro.currentText()
         curso = self.ui.cboxCurso_PgCadastro.currentText()
         serie_turma = self.ui.cboxTurma_PgCadastro.currentText()
-
+        face_alunoCadastro = self.face_aluno
         #ira fazer a validação dos campos não preechidos
         if(nome == '' or rm == '' or periodo == 'Selecione o período do aluno' or curso == 'Selecione o curso do aluno' or 
            serie_turma == 'Selecione a turma do aluno'):
@@ -664,81 +581,42 @@ class Config_TelasDiretor(QMainWindow):
         elif not re.match(r'^[A-Za-z\s]+$', nome):
             QMessageBox.warning(self, "Aviso", "O nome deve conter apenas letras e espaços.")
             self.ui.etyNome_PgCadastro.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
-            return  # Saia da função se o nome for inválido
 
         #verifica se o RM contém apenas dígitos
         elif not re.match(r'^\d+$', rm):
             QMessageBox.warning(self, "Aviso", "O RM deve conter apenas números.")
             self.ui.etyRM_PgCadastro.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
-            return  # Saia da função se o RM for inválido)
 
+        elif face_alunoCadastro is None:
+            QMessageBox.information(self, "Imagem não encontrada", "Selecione alguma imagem do aluno. O aluno não contém imagem para cadastrar.")  
+        
         #se os campos estiverem preechidos
-        else:
-            id_periodo = 0
-            id_curso = 0
+        else:  
+            resultado = self.classeAluno.cadastrarAluno(nome, rm, periodo, curso, serie_turma, self.face_bytes, face_alunoCadastro)
 
-            #setando o id do periodo
-            if(periodo == 'Manhã'):
-                id_periodo = id_periodo + 1    
-            elif(periodo == 'Tarde'):
-                id_periodo = id_periodo + 2       
-            else:#periodo da noite
-                id_periodo = id_periodo + 3
-
-            #setando o id do curso
-            if(curso == 'Administração'):
-                id_curso = id_curso + 1      
-            elif(curso == 'Contabilidade'):
-                id_curso = id_curso + 2        
-            elif(curso == 'Desenvolvimento de Sistemas'):
-                id_curso = id_curso + 3    
-            elif(curso == 'Logística'):
-                id_curso = id_curso + 4   
-            elif(curso == 'Recursos Humanos'):
-                id_curso = id_curso + 5   
-            else:#servicos juridicos
-                id_curso = id_curso + 6
-            
-            #se obter a imagem da face do aluno
-            if self.face_aluno is not None:
-                #consulta a tabela 'turma' para encontrar o ID da turma correspondente
-                BancoTcc.cursor.execute("SELECT id_turma FROM turma WHERE id_periodo = ? AND id_curso = ? AND serie_turma = ?", (id_periodo, id_curso, serie_turma))
-                result = BancoTcc.cursor.fetchone()
-                #se obter o id da turma
-                if result:
-                    id_turma = result[0]  #setando o id da turma em uma variavel
-                    #inserindo o aluno na tabela 'alunos' associando-o à turma correta
-                    BancoTcc.cursor.execute("INSERT INTO aluno (id_turma, rm_aluno, nome_aluno, face_aluno) VALUES (?, ?, ?, ?)", (id_turma, rm, nome, self.face_aluno))
-                    BancoTcc.conn.commit()
-                    QMessageBox.information(self, "Cadastro Concluido", "Cadastro Realizado com Sucesso!!")#mensagem de cadastro concluido
-                    #limpando todos os campos apos o cadastro
-                    self.limparCampos()
-                #se nao obter o id da turma           
-                else:
-                    QMessageBox.information(self, "Turma não encontrada", "Turma não encontrada. O aluno não foi cadastrado.!")             
-            #se nao obter a imagem da face do aluno
+            if resultado == "Cadastro Realizado com Sucesso!":
+                QMessageBox.information(self, "Cadastro Concluído", resultado)
+                self.limparCampos()
+            elif resultado == "Este RM já existe no banco de dados. Digite outro RM.":
+                QMessageBox.information(self, "RM existente", resultado)
+                self.ui.etyRM_PgCadastro.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
             else:
-                QMessageBox.information(self, "Imagem não encontrada", "Selecione alguma imagem do aluno. O aluno não contém imagem para cadastrar.")  
-    
+                QMessageBox.warning(self, "Turma não encontrada", resultado)
+
+
     #funcao que ira carregar a foto do aluno
-    def carregar_imagem(self):
-        #cria um objeto de opções para a caixa de dialogo
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
+    def carregar_imagem(self):   
+        self.Face.countdown_duration = 12  # Reinicie a duração da contagem
+        self.Face.start_time = time.time()  # Reinicie o tempo de início da contagem
+        self.face_bytes, self.face_color_bytes = self.Face.cadastrarFace()
 
-        file_name, _ = QFileDialog.getOpenFileName(self, "Selecionar Imagem", "", "Imagens (*.png *.jpg *.jpeg *.gif *.bmp);;Todos os arquivos (*)", options=options)
+        pixmap = QPixmap()
+        pixmap.loadFromData(self.face_color_bytes)
+        pixmap = pixmap.scaled(200, 210)  # Redimensionar a imagem, se necessário
+        self.ui.lbl_ImgAluno_PgCadastro.setPixmap(pixmap)
+        self.face_aluno = self.face_color_bytes
 
-        #verifica se o caminho do arquivo (filename) não está vazio
-        if file_name:
-            #cria um objeto QPixmap a partir do arquivo de imagem selecionado
-            pixmap = QPixmap(file_name)
-            pixmap = pixmap.scaled(200, 210)#tamanho da imagem
-            self.ui.lbl_ImgAluno_PgCadastro.setPixmap(pixmap)#setando imagem na label da imagem
-
-            # Lê os dados da imagem e os armazena na variável image_data
-            with open(file_name, 'rb') as imagem_aluno:
-                self.face_aluno = imagem_aluno.read()
-    
+  
     #funcao que ira limpar os campos e setar os valores iniciais
     def limparCampos(self):
         #limpando as caixas de texto
@@ -748,6 +626,7 @@ class Config_TelasDiretor(QMainWindow):
         self.ui.cboxPeriodo_PgCadastro.setCurrentIndex(0)
         self.ui.cboxCurso_PgCadastro.setCurrentIndex(0)
         self.ui.cboxTurma_PgCadastro.setCurrentIndex(0)
+        self.face_aluno = None
 
         #retornando as cores iniciais dos campos
         self.ui.etyNome_PgCadastro.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid #000000; color:#ffffff')
@@ -789,7 +668,6 @@ class Config_TelasDiretor(QMainWindow):
     #=================================================================================================
 
 
-
     #=================================================================================================
     #===========FUNCAO PAG ATUALIZAR ALUNO============================================================
     #=================================================================================================
@@ -797,138 +675,149 @@ class Config_TelasDiretor(QMainWindow):
     def atualizarAluno(self):
         #id do aluno que sera atualizado
         id_aluno_atualizar = self.id_aluno
-        #se obter o id do aluno
-        if id_aluno_atualizar is not None:
-            #obtendo os valores dos campos 
-            nome = self.ui.etyNome_PgAtualizar.text().upper()
-            rm = self.ui.etyRM_PgAtualizar.text()
-            periodo = self.ui.cboxPeriodo_PgAtualizar.currentText()
-            curso = self.ui.cboxCurso_PgAtualizar.currentText()
-            serie_turma = self.ui.cboxTurma_PgAtualizar.currentText()
-         
-            dialogo = QMessageBox()  #caixa de mensagem          
-            dialogo.setWindowTitle("Atualização do cadastro do aluno")  #titulo da caixa de mensagem         
-            dialogo.setText("Deseja atualizar os dados do cadastro do aluno?:")  #texto da caixa de mensagem      
-            dialogo.setIcon(QMessageBox.Information)  #define o ícone da caixa de diálogo
-            dialogo.setStandardButtons( QMessageBox.Ok | QMessageBox.Cancel)  #define os botões padrão como "Ok" e "Cancelar"
-            resultado = dialogo.exec_()
 
-            #se o usuario clicar em 'ok' ira atualizar o aluno
-            if resultado == QMessageBox.Ok:
-                #se obter o id do aluno
-                if id_aluno_atualizar is not None:
-                    id_periodo = 0
-                    id_curso = 0
+        #obtendo os valores dos campos 
+        nome = self.ui.etyNome_PgAtualizar.text().upper()
+        rm = self.ui.etyRM_PgAtualizar.text()
+        periodo = self.ui.cboxPeriodo_PgAtualizar.currentText()
+        curso = self.ui.cboxCurso_PgAtualizar.currentText()
+        serie_turma = self.ui.cboxTurma_PgAtualizar.currentText()
+        face_alunoAtualizar = self.face_alunoAtualizar 
 
-                    #setando o id do periodo
-                    if(periodo == 'Manhã'):
-                        id_periodo = id_periodo + 1
-                    elif(periodo == 'Tarde'):
-                        id_periodo = id_periodo + 2
-                    else:#periodo da noite
-                        id_periodo = id_periodo + 3
+        #ira fazer a validação dos campos não preechidos
+        if(nome == '' or rm == '' or periodo == 'Selecione o período do aluno' or curso == 'Selecione o curso do aluno' or 
+           serie_turma == 'Selecione a turma do aluno'):
+            QMessageBox.warning(self, "Aviso", "Preencha todos os campos!")#mensagem de campos nao preenchidos
 
-                    #setando o id do curso
-                    if(curso == 'Administração'):
-                        id_curso = id_curso + 1
-                    elif(curso == 'Contabilidade'):
-                        id_curso = id_curso + 2
-                    elif(curso == 'Desenvolvimento de Sistemas'):
-                        id_curso = id_curso + 3
-                    elif(curso == 'Logística'):
-                        id_curso = id_curso + 4
-                    elif(curso == 'Recursos Humanos'):
-                        id_curso = id_curso + 5
-                    else:#servicos juridicos
-                        id_curso = id_curso + 6
+            #validações de nao preechimento dos campos, setando os campos nao preenchidos com cor vermelha
+            if(nome == ''):
+                self.ui.etyNome_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+            if(rm == ''):
+                self.ui.etyRM_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+            if(periodo == 'Selecione o período do aluno'):
+                self.ui.cboxPeriodo_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+            if(curso == 'Selecione o curso do aluno'):
+                self.ui.cboxCurso_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+            if(serie_turma == 'Selecione a turma do aluno'):
+                self.ui.cboxTurma_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+
+            #validações de preechimento corretos dos campos, setando os campos preenchidos com cor verde
+            if(nome != ''):
+                self.ui.etyNome_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid green; color:#ffffff')
+            if(rm != ''):
+                self.ui.etyRM_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid green; color:#ffffff')
+            if(periodo != 'Selecione o período do aluno'):
+                self.ui.cboxPeriodo_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid green; color:#ffffff')
+            if(curso != 'Selecione o curso do aluno'):
+                self.ui.cboxCurso_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid green; color:#ffffff')
+            if(serie_turma != 'Selecione a turma do aluno'):
+                self.ui.cboxTurma_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid green; color:#ffffff')
+        
+        #verifica se o nome é uma string não vazia e contém apenas letras e espaços
+        elif not re.match(r'^[A-Za-z\s]+$', nome):
+            QMessageBox.warning(self, "Aviso", "O nome deve conter apenas letras e espaços.")
+            self.ui.etyNome_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+
+        #verifica se o RM contém apenas dígitos
+        elif not re.match(r'^\d+$', rm):
+            QMessageBox.warning(self, "Aviso", "O RM deve conter apenas números.")
+            self.ui.etyRM_PgAtualizar.setStyleSheet('background-color: #069E6E; border-radius:5px; border: 2px solid red; color:#ffffff')
+
+        elif face_alunoAtualizar is None:
+            QMessageBox.information(self, "Imagem não encontrada", "Selecione alguma imagem do aluno. O aluno não contém imagem para cadastrar.")  
+        
+        #se os campos estiverem preechidos
+        else:  
+            #se obter o id do aluno
+            if id_aluno_atualizar is not None:
+                dialogo = QMessageBox()  #caixa de mensagem          
+                dialogo.setWindowTitle("Atualização do cadastro do aluno")  #titulo da caixa de mensagem         
+                dialogo.setText("Deseja alterar a face do aluno?:")  #texto da caixa de mensagem      
+                dialogo.setIcon(QMessageBox.Information)  #define o ícone da caixa de diálogo
+                dialogo.setStandardButtons( QMessageBox.Ok | QMessageBox.Cancel)  #define os botões padrão como "Ok" e "Cancelar"
+                resultadoOpcao = dialogo.exec_()
+
+                #se o usuario clicar em 'ok' ira atualizar o aluno
+                if resultadoOpcao == QMessageBox.Ok:
+                    self.carregar_imagemPgAtualizar()
+                    atualizar = 'atualizar tudo'
+
+                    dialogo = QMessageBox()  #caixa de mensagem          
+                    dialogo.setWindowTitle("sfsdf")  #titulo da caixa de mensagem         
+                    dialogo.setText("Deseja utilizar foto cadastrada há instantes?:")  #texto da caixa de mensagem      
+                    dialogo.setIcon(QMessageBox.Information)  #define o ícone da caixa de diálogo
+                    dialogo.setStandardButtons( QMessageBox.Ok | QMessageBox.Cancel)  #define os botões padrão como "Ok" e "Cancelar"
+                    resultadoOpcao = dialogo.exec_()
                     
-                    #consulta a tabela 'turma' para encontrar o ID da turma correspondente
-                    BancoTcc.cursor.execute("SELECT id_turma FROM turma WHERE id_periodo = ? AND id_curso = ? AND serie_turma = ?", (id_periodo, id_curso, serie_turma))
-                    result = BancoTcc.cursor.fetchone()
-                    #se obter o id da turma
-                    if result:
-                        id_turma = result[0]  #setando o id da turma em uma variavel
-                        #atualizando os dados do aluno com base no id do aluno selecionado, associando-o à turma correta
-                        BancoTcc.cursor.execute("UPDATE aluno SET id_turma=?, rm_aluno=?, nome_aluno=?, face_aluno=? WHERE id_aluno = ?", (id_turma, rm, nome, self.face_aluno, id_aluno_atualizar))
-                        BancoTcc.conn.commit()
-                        QMessageBox.information(self, "Atualização do aluno concluída", "Dados do cadastro do aluno atualizado com sucesso!")
-                        #redirecionando para pagina de dados do alunos
-                        self.ui.stackedWidget.setCurrentIndex(7)
 
-                        #EXCUTANDO SQL NOVAMENTE PARA OBTER OS NOVOS DADOS CADASTRADOS E ASSIM EXIBIR NA PAG DE DADOS DO ALUNO
-                        consulta_sql = "SELECT * FROM aluno WHERE id_aluno = ?"  #consulta sql que selcionar os dados do aluno de acordo com o id dele
-                        BancoTcc.cursor.execute(consulta_sql, (self.id_aluno,))
-                        dados_aluno = BancoTcc.cursor.fetchone()  #armazenando os dados do aluno
-                        #se obter os dados do aluno
-                        if dados_aluno:
-                            self.id_aluno = dados_aluno[0]  #variavel que recebe o id do aluno, o '0' é a coluna em que o id do aluno esta
-                            id_turma = dados_aluno[1]  #variavel que recebe o id do curso, '1' é coluna em que o id do curso esta 
-                            rm_aluno = dados_aluno[2]  #variavel que recebe o id do periodo, '2' é coluna em que o id do periodo esta 
-                            nome_aluno = dados_aluno[3]  #variavel que recebe o nome do aluno, o '3' é a coluna em que o nome do aluno esta
-                            self.face_alunoAtt = dados_aluno[4]  #variavel que recebe a face do aluno, o '4' é a coluna em que a face do aluno esta
+                    if resultadoOpcao == QMessageBox.Ok:
+                        resultado = self.classeAluno.atualizarAluno(id_aluno_atualizar, nome, rm, periodo, curso, serie_turma, self.face_bytes, face_alunoAtualizar, atualizar)
+                        if resultado == "Dados do cadastro do aluno atualizado com sucesso!":
+                            QMessageBox.information(self, "Atualização do aluno concluída", resultado)
+                            resultado = self.classeAluno.visualizarAluno(rm)  
+                            id_aluno, nome_aluno, rm_aluno, turno_periodo, nome_curso, serie_turma, nomeAbrevi_curso, imagem_aluno = resultado
+                            #setando os dados na pag Dados Turma para a visualização
+                            self.ui.lbl_Nome_PgDadosAluno.setText(nome_aluno)
+                            self.ui.lbl_Rm_PgDadosAluno.setText(str(rm_aluno))
+                            self.ui.lbl_Periodo_PgDadosAluno.setText(turno_periodo)
+                            self.ui.lbl_NomeCurso_PgDadosAluno.setText(nome_curso)
+                            self.ui.lbl_Turma_PgDadosAluno.setText(serie_turma + ' ' + nomeAbrevi_curso + ' - ' + turno_periodo.upper())   
+                            
+                            # Crie um QPixmap a partir dos dados da imagem
+                            pixmap = QPixmap()
+                            pixmap.loadFromData(self.face_alunoAtualizar)
+                            # Defina o QPixmap na label
+                            self.ui.lbl_ImgAluno_PgDadosAluno.setPixmap(pixmap)
+                            self.ui.lbl_ImgAluno_PgDadosAluno.setScaledContents(True)
 
-                            consulta_turma = "SELECT * FROM turma WHERE id_turma = ?"  #consulta SQL para selecionar os dados da turma com base no id
-                            BancoTcc.cursor.execute(consulta_turma, (id_turma,))
-                            dados_turma = BancoTcc.cursor.fetchone()  #armazenando os dados da turma 
-                            #se obter os dados da turma
-                            if dados_turma is not None:
-                                id_curso = dados_turma[1]  #variavel que recebe o id do curso, '1' é coluna em que o id do curso esta 
-                                id_periodo = dados_turma[2]  #variavel que recebe o id do periodo, '2' é coluna em que o id do periodo esta 
-                                serie_turma = dados_turma[3] #variavel que recebe o id da serie, '3' é coluna em que o id da serie esta 
+                            #setando os campos com os valores do respectivo aluno contido no banco
+                            self.nome_alunoAtualizar = nome_aluno #'3' coluna em que esta o nome do aluno na tabela aluno
+                            self.rm_alunoAtualizar = rm_aluno#'2' coluna em que esta o rm do aluno na tabela aluno
+                            self.turno_periodoAtualizar = turno_periodo
+                            self.nome_cursoAtualizar = nome_curso
+                            self.serie_turmaAtualizar = serie_turma
+                            self.face_alunoAtualizar = face_alunoAtualizar
 
-                                #consulta SQL para selecionar os dados do curso com base no id do curso
-                                consulta_curso = "SELECT * FROM curso WHERE id_curso = ?"
-                                BancoTcc.cursor.execute(consulta_curso, (id_curso,))
-                                dados_curso = BancoTcc.cursor.fetchone()  #armazenando os dados do curso
+                            #redirecionando para pagina de dados do alunos
+                            self.ui.stackedWidget.setCurrentIndex(7)
+                    elif resultadoOpcao == QMessageBox.Cancel:
+                        QMessageBox.information(self, "Ação interrompida.", 'Vamos capturar novamente a imagem do aluno')
 
-                                #consulta SQL para selecionar os dados do período com base no id do período
-                                consulta_periodo = "SELECT * FROM periodo WHERE id_periodo = ?"
-                                BancoTcc.cursor.execute(consulta_periodo, (id_periodo,))
-                                dados_periodo = BancoTcc.cursor.fetchone()  #armazenando os dados do periodo
+                #se clicar em 'cancel' ira interromper a atualização
+                elif resultadoOpcao == QMessageBox.Cancel:
+                    QMessageBox.warning(self, "Atualização do aluno concluída com sucesso!", "Atualização dos dados do aluno concluída!")
+                    atualizar = 'atualizar campos'
+                    resultado = self.classeAluno.atualizarAluno(id_aluno_atualizar, nome, rm, periodo, curso, serie_turma, None, None, atualizar)
+                    resultado = self.classeAluno.visualizarAluno(rm)  
+                    id_aluno, nome_aluno, rm_aluno, turno_periodo, nome_curso, serie_turma, nomeAbrevi_curso, imagem_aluno = resultado
+                    #setando os dados na pag Dados Turma para a visualização
+                    self.ui.lbl_Nome_PgDadosAluno.setText(nome_aluno)
+                    self.ui.lbl_Rm_PgDadosAluno.setText(str(rm_aluno))
+                    self.ui.lbl_Periodo_PgDadosAluno.setText(turno_periodo)
+                    self.ui.lbl_NomeCurso_PgDadosAluno.setText(nome_curso)
+                    self.ui.lbl_Turma_PgDadosAluno.setText(serie_turma + ' ' + nomeAbrevi_curso + ' - ' + turno_periodo.upper())   
+                    
+                    # Crie um QPixmap a partir dos dados da imagem
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(self.face_alunoAtualizar)
+                    # Defina o QPixmap na label
+                    self.ui.lbl_ImgAluno_PgDadosAluno.setPixmap(pixmap)
+                    self.ui.lbl_ImgAluno_PgDadosAluno.setScaledContents(True)
 
-                                #se obter os dados do curso e do periodo
-                                if dados_curso is not None and dados_periodo is not None:
-                                    nome_curso = dados_curso[1]  #variavel que recebe o nome do curso, '1' é coluna em que o nome do curso esta 
-                                    turno_periodo = dados_periodo[1]  #variavel que recebe o turno do curso, '1' é coluna em que o turno do curso esta 
+                    #setando os campos com os valores do respectivo aluno contido no banco
+                    self.nome_alunoAtualizar = nome_aluno #'3' coluna em que esta o nome do aluno na tabela aluno
+                    self.rm_alunoAtualizar = rm_aluno#'2' coluna em que esta o rm do aluno na tabela aluno
+                    self.turno_periodoAtualizar = turno_periodo
+                    self.nome_cursoAtualizar = nome_curso
+                    self.serie_turmaAtualizar = serie_turma
+                    self.face_alunoAtualizar = face_alunoAtualizar
 
-                                    #setando os dados na pag Dados Turma para a visualização
-                                    self.ui.lbl_Nome_PgDadosAluno.setText(nome_aluno)
-                                    self.ui.lbl_Rm_PgDadosAluno.setText(str(rm_aluno))
-                                    self.ui.lbl_Periodo_PgDadosAluno.setText(turno_periodo)
-                                    self.ui.lbl_NomeCurso_PgDadosAluno.setText(nome_curso)
-                                    self.ui.lbl_Turma_PgDadosAluno.setText(serie_turma + ' ' + nome_curso + ' ' + turno_periodo)                 
-                                    # Crie um QPixmap a partir dos dados da imagem
-                                    pixmap = QPixmap()
-                                    pixmap.loadFromData(self.face_alunoAtt)
-                                    # Defina o QPixmap na label
-                                    self.ui.lbl_ImgAluno_PgDadosAluno.setPixmap(pixmap)
-                                    self.ui.lbl_ImgAluno_PgDadosAluno.setScaledContents(True)
-
-                                    #setando os dados nas variaveis que foram iniciadas no 'def __init__', nas configs iniciais
-                                    self.turno_periodoAtt = turno_periodo
-                                    self.nome_cursoAtt = nome_curso
-                                    self.serie_turmaAtt = serie_turma
-                                #se nao obter os dados do curso e do periodo
-                                else:
-                                    QMessageBox.information(self, "Sem resultados!", "Nenhum resultado encontrado para o ID do curso ou do período.")   
-                            #se nao obter os dados da turma
-                            else:
-                                QMessageBox.information(self, "Informação", "Nenhuma turma encontrada com o id informado.")
-                        #se nao obter os dados do aluno    
-                        else:
-                            QMessageBox.information(self, "Informação", "Nenhum aluno encontrado com o RM informado.")
-                    #se nao obter o id da turma
-                    else:
-                        QMessageBox.information(self, "Turma não encontrada", "Turma não encontrada. O aluno não foi atualizado.!")
-                #se obter o id do aluno
-                else:
-                    QMessageBox.warning(self, "Exclusão do aluno", "ID do aluno não definido ou encontrado.")
-            #se clicar em 'cancel' ira interromper a atualização
-            elif resultado == QMessageBox.Cancel:
-                QMessageBox.warning(self, "Atualização do aluno interrompida", "Atualização interrompida com sucesso!")
-        #se nao obter o id do aluno
-        else:
-            QMessageBox.warning(self, "Atualização do aluno falhou", "ID do aluno não definido ou encontrado.")
+                    
+                    #redirecionando para pagina de dados do alunos
+                    self.ui.stackedWidget.setCurrentIndex(7)
+            #se nao obter o id do aluno
+            else:
+                QMessageBox.warning(self, "Atualização do aluno falhou", "ID do aluno não definido ou encontrado.")
 
     #funcao que ira exibir os cursos de acordo com o periodo selecionado
     def exibirCursosPorPeriodo_PgAtualizar(self):
@@ -954,22 +843,16 @@ class Config_TelasDiretor(QMainWindow):
 
     #funcao que ira carregar a foto do aluno
     def carregar_imagemPgAtualizar(self):
-        #cria um objeto de opções para a caixa de dialogo
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
+        self.Face.countdown_duration = 12  # Reinicie a duração da contagem
+        self.Face.start_time = time.time()  # Reinicie o tempo de início da contagem
+        self.face_bytes, self.face_color_bytes = self.Face.cadastrarFace()
 
-        file_name, _ = QFileDialog.getOpenFileName(self, "Selecionar Imagem", "", "Imagens (*.png *.jpg *.jpeg *.gif *.bmp);;Todos os arquivos (*)", options=options)
+        pixmap = QPixmap()
+        pixmap.loadFromData(self.face_color_bytes)
+        pixmap = pixmap.scaled(200, 210)  # Redimensionar a imagem, se necessário
+        self.ui.lbl_ImgAluno_PgAtualizar.setPixmap(pixmap)
+        self.face_alunoAtualizar = self.face_color_bytes
 
-        #verifica se o caminho do arquivo (filename) não está vazio
-        if file_name:
-            #cria um objeto QPixmap a partir do arquivo de imagem selecionado
-            pixmap = QPixmap(file_name)
-            pixmap = pixmap.scaled(200, 210)#tamanho da imagem
-            self.ui.lbl_ImgAluno_PgAtualizar.setPixmap(pixmap)#setando imagem na label da imagem
-
-            # Lê os dados da imagem e os armazena na variável image_data
-            with open(file_name, 'rb') as imagem_aluno:
-                self.face_aluno = imagem_aluno.read()
     #=================================================================================================
     #=================================================================================================
 

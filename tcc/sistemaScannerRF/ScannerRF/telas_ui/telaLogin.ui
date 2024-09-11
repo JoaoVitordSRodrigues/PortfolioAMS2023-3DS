@@ -93,9 +93,9 @@ border-radius: 10px;</string>
          <widget class="QLabel" name="lblTitulo">
           <property name="geometry">
            <rect>
-            <x>130</x>
+            <x>132</x>
             <y>60</y>
-            <width>141</width>
+            <width>200</width>
             <height>61</height>
            </rect>
           </property>
@@ -120,10 +120,10 @@ background-position:center;</string>
          <widget class="QLabel" name="lblSubtitulo">
           <property name="geometry">
            <rect>
-            <x>90</x>
+            <x>93</x>
             <y>115</y>
-            <width>221</width>
-            <height>16</height>
+            <width>266</width>
+            <height>18</height>
            </rect>
           </property>
           <property name="font">
@@ -290,7 +290,7 @@ QPushButton:pressed{
            <rect>
             <x>24</x>
             <y>320</y>
-            <width>101</width>
+            <width>120</width>
             <height>21</height>
            </rect>
           </property>
